@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>IMAG · Quiz Diagnóstico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root {
+  /* Light palette */
+  --bg:     #f5f4f0;
+  --bg2:    #ffffff;
+  --bg3:    #edecea;
+  --border: rgba(0,0,0,.10);
+  --border2:rgba(0,0,0,.16);
+  --text:   #1a1a1a;
+  --muted:  #666;
+  --muted2: #999;
+
+  /* Brand */
+  --mama:      #c0365a;
+  --mama-dim:  rgba(192,54,90,.08);
+  --mama-b:    rgba(192,54,90,.25);
+  --tireo:     #1a7fa8;
+  --tireo-dim: rgba(26,127,168,.08);
+  --tireo-b:   rgba(26,127,168,.25);
+
+  /* Answers */
+  --ben:     #1a7a4a;
+  --mal:     #b83232;
+  --ind:     #b86a00;
+  --ben-dim: rgba(26,122,74,.08);
+  --mal-dim: rgba(184,50,50,.08);
+  --ind-dim: rgba(184,106,0,.08);
+  --ben-b:   rgba(26,122,74,.25);
+  --mal-b:   rgba(184,50,50,.25);
+  --ind-b:   rgba(184,106,0,.25);
+
+  --fd: 'Lora', serif;
+  --fb: 'Source Sans 3', sans-serif;
+  --r:  12px;
+  --rs: 7px;
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:var(--fb); background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
+.page { display:none; min-height:100vh; flex-direction:column; }
+.page.active { display:flex; }
+
+/* ── TOPBAR ── */
+.topbar { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-bottom:1px solid var(--border); background:var(--bg2); position:sticky; top:0; z-index:200; flex-shrink:0; }
+.logo { font-family:var(--fd); font-weight:700; font-size:18px; color:var(--text); letter-spacing:.2px; }
+.logo span { color:var(--mama); }
+.tr { display:flex; align-items:center; gap:8px; }
+
+.pill { font-family:var(--fb); font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:4px 11px; border-radius:20px; border:1px solid var(--border2); color:var(--muted); background:var(--bg3); }
+.pill.mama  { background:var(--mama-dim);  border-color:var(--mama-b);  color:var(--mama); }
+.pill.tireo { background:var(--tireo-dim); border-color:var(--tireo-b); color:var(--tireo); }
+.pill.live  { background:var(--ben-dim);   border-color:var(--ben-b);   color:var(--ben); }
+.pill.live::before { content:'● '; animation:blink 1.4s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+/* ── BUTTONS ── */
+.btn { font-family:var(--fb); font-weight:700; font-size:12px; letter-spacing:.3px; padding:8px 16px; border-radius:var(--rs); border:1px solid transparent; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+.btn:hover:not(:disabled) { filter:brightness(.93); transform:translateY(-1px); }
+.btn:disabled { opacity:.4; cursor:not-allowed; transform:none!important; }
+.btn-mama  { background:var(--mama);  color:#fff; border-color:var(--mama); }
+.btn-tireo { background:var(--tireo); color:#fff; border-color:var(--tireo); }
+.btn-ben   { background:var(--ben);   color:#fff; border-color:var(--ben); }
+.btn-ghost { background:var(--bg2); color:var(--text); border-color:var(--border2); }
+.btn-ghost:hover:not(:disabled) { background:var(--bg3); }
+.btn-lg { padding:12px 26px; font-size:14px; border-radius:var(--r); }
+.btn-sm { padding:5px 11px; font-size:11px; }
+
+/* ── LANDING ── */
+#landing { align-items:center; justify-content:center; background:var(--bg); }
+.li { text-align:center; padding:52px 24px 64px; max-width:560px; }
+.li-kick { font-family:var(--fb); font-size:10px; font-weight:700; letter-spacing:3px; color:var(--muted2); text-transform:uppercase; margin-bottom:20px; display:flex; align-items:center; justify-content:center; gap:10px; }
+.li-kick::before,.li-kick::after { content:''; height:1px; width:28px; background:var(--border2); }
+.li-h1 { font-family:var(--fd); font-size:clamp(44px,8vw,76px); font-weight:700; line-height:1.05; margin-bottom:8px; color:var(--text); }
+.li-h1 em { font-style:italic; color:var(--mama); }
+.li-sub { font-family:var(--fd); font-style:italic; font-size:16px; color:var(--muted); margin-bottom:40px; }
+.li-cards { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-bottom:32px; }
+
+.ec { width:205px; background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); padding:28px 20px 24px; cursor:pointer; transition:all .18s; text-align:center; }
+.ec:hover { box-shadow:0 4px 20px rgba(0,0,0,.1); transform:translateY(-4px); }
+.ec.mc:hover { border-color:var(--mama-b); }
+.ec.tc:hover { border-color:var(--tireo-b); }
+.ec-ico  { font-size:32px; margin-bottom:12px; display:block; }
+.ec-role { font-family:var(--fb); font-size:10px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; margin-bottom:4px; }
+.mc .ec-role { color:var(--mama); } .tc .ec-role { color:var(--tireo); }
+.ec-name { font-family:var(--fd); font-size:22px; font-weight:700; margin-bottom:6px; }
+.ec-desc { font-size:12px; color:var(--muted); line-height:1.5; }
+
+/* QR Panel */
+.qr-panel { display:flex; flex-direction:column; align-items:center; gap:12px; }
+.qr-panel-label { font-family:var(--fb); font-size:10px; font-weight:700; letter-spacing:2.5px; color:var(--muted2); text-transform:uppercase; display:flex; align-items:center; gap:10px; }
+.qr-panel-label::before,.qr-panel-label::after { content:''; height:1px; width:24px; background:var(--border2); }
+.qr-box { background:white; border-radius:10px; padding:10px; display:inline-block; border:1px solid var(--border); }
+.qr-url { font-family:var(--fb); font-size:11px; color:var(--tireo); text-align:center; }
+
+/* ── PRESENTER ── */
+#presenter { flex-direction:column; }
+.pl { display:grid; grid-template-columns:260px 1fr; flex:1; overflow:hidden; height:calc(100vh - 53px); }
+
+/* Sidebar */
+.sidebar { background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+.sb-sec  { border-bottom:1px solid var(--border); padding:14px 12px; }
+.sb-lbl  { font-family:var(--fb); font-size:9px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:var(--muted2); margin-bottom:8px; }
+
+/* Phase buttons */
+.phase-btns { display:flex; flex-direction:column; gap:3px; }
+.pb { display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:var(--rs); cursor:pointer; transition:all .14s; border:1px solid transparent; background:transparent; color:var(--muted); font-family:var(--fb); font-size:13px; text-align:left; width:100%; }
+.pb:hover { background:var(--bg3); color:var(--text); }
+.pb.active.mama  { background:var(--mama-dim);  border-color:var(--mama-b);  color:var(--mama); }
+.pb.active.tireo { background:var(--tireo-dim); border-color:var(--tireo-b); color:var(--tireo); }
+.pb.active.ben   { background:var(--ben-dim);   border-color:var(--ben-b);   color:var(--ben); }
+.pb.active.ind   { background:var(--ind-dim);   border-color:var(--ind-b);   color:var(--ind); }
+.pb-ico { font-size:16px; flex-shrink:0; }
+.pb-lbl { font-family:var(--fd); font-weight:600; font-size:12px; }
+.pb-sub { font-size:10px; opacity:.65; margin-top:1px; }
+
+/* Phase group divider */
+.pb-divider { height:1px; background:var(--border); margin:6px 0; }
+
+/* Highlight action buttons inside sidebar */
+.pb-action { border:1px solid var(--border); background:var(--bg3); }
+.pb-action.mama-action  { background:var(--mama-dim);  border-color:var(--mama-b); }
+.pb-action.tireo-action { background:var(--tireo-dim); border-color:var(--tireo-b); }
+.pb-action.active.mama  { background:var(--mama);  color:#fff; border-color:var(--mama); }
+.pb-action.active.tireo { background:var(--tireo); color:#fff; border-color:var(--tireo); }
+
+/* Config scroll */
+.cfg-scroll { flex:1; overflow-y:auto; padding:12px; }
+.cfg-blk { margin-bottom:16px; }
+.cfg-title { font-family:var(--fb); font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; padding:4px 0; margin-bottom:6px; border-bottom:1px solid var(--border); }
+.cfg-title.mama  { color:var(--mama); }
+.cfg-title.tireo { color:var(--tireo); }
+.cfg-row { display:flex; align-items:center; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--border); gap:8px; }
+.cfg-lbl { font-size:11px; color:var(--muted); flex:1; font-family:var(--fb); font-weight:600; }
+.asel { background:var(--bg3); border:1px solid var(--border2); color:var(--text); padding:3px 6px; border-radius:5px; font-family:var(--fb); font-size:10px; font-weight:700; outline:none; cursor:pointer; }
+.asel option { background:var(--bg2); }
+.asel[data-v="B"] { border-color:var(--ben-b); color:var(--ben); }
+.asel[data-v="M"] { border-color:var(--mal-b); color:var(--mal); }
+.asel[data-v="I"] { border-color:var(--ind-b); color:var(--ind); }
+
+/* Sidebar QR */
+.sb-qr { padding:12px; border-top:1px solid var(--border); }
+.sb-qr-lbl { font-family:var(--fb); font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted2); margin-bottom:8px; }
+.sb-qr-inner { display:flex; gap:10px; align-items:center; }
+.sb-qr-box { background:white; border-radius:7px; padding:6px; flex-shrink:0; border:1px solid var(--border); }
+.sb-qr-info { font-size:11px; color:var(--muted); line-height:1.6; }
+.sb-qr-info strong { color:var(--tireo); font-weight:600; display:block; margin-bottom:1px; }
+
+/* ── DASHBOARD ── */
+.md { overflow-y:auto; padding:24px 28px; display:flex; flex-direction:column; gap:20px; }
+.md-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:60px; color:var(--muted2); }
+.md-empty-ico { font-size:48px; margin-bottom:16px; opacity:.4; }
+.md-empty-t { font-family:var(--fd); font-size:18px; font-weight:600; color:var(--muted); margin-bottom:6px; }
+.md-empty-s { font-size:13px; }
+
+.sec-t { font-family:var(--fb); font-size:9px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:var(--muted2); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+.sec-t::after { content:''; flex:1; height:1px; background:var(--border); }
+
+.sg { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+.sc { background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); padding:16px 18px; position:relative; overflow:hidden; }
+.sc::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+.sc.mama::before  { background:var(--mama); }
+.sc.tireo::before { background:var(--tireo); }
+.sc.tot::before   { background:var(--ben); }
+.sc-lbl { font-family:var(--fb); font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.sc-val { font-family:var(--fd); font-size:34px; font-weight:700; line-height:1; margin-bottom:2px; }
+.sc.mama .sc-val  { color:var(--mama); }
+.sc.tireo .sc-val { color:var(--tireo); }
+.sc.tot .sc-val   { color:var(--ben); }
+.sc-sub { font-size:11px; color:var(--muted); }
+
+.cag { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
+.cac { background:var(--bg2); border:1px solid var(--border); border-radius:var(--rs); padding:11px 13px; }
+.cac-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px; }
+.cac-lbl { font-family:var(--fb); font-size:9px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted2); }
+.ab { font-size:9px; font-family:var(--fb); font-weight:700; letter-spacing:.5px; padding:2px 6px; border-radius:20px; }
+.ab.B { background:var(--ben-dim); color:var(--ben); border:1px solid var(--ben-b); }
+.ab.M { background:var(--mal-dim); color:var(--mal); border:1px solid var(--mal-b); }
+.ab.I { background:var(--ind-dim); color:var(--ind); border:1px solid var(--ind-b); }
+.ab._ { background:var(--bg3); color:var(--muted2); border:1px solid var(--border); }
+.cac-track { height:4px; background:var(--bg3); border-radius:3px; overflow:hidden; margin-bottom:5px; }
+.cac-fill  { height:100%; border-radius:3px; transition:width .6s cubic-bezier(.4,0,.2,1); }
+.cac-pct { font-family:var(--fd); font-size:17px; font-weight:700; }
+.cac-n   { font-size:10px; color:var(--muted); }
+
+.dist-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); padding:18px 20px; }
+.dist-card-t { font-family:var(--fb); font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted2); margin-bottom:14px; }
+.drow { display:flex; align-items:center; gap:12px; margin-bottom:9px; }
+.drow:last-child { margin-bottom:0; }
+.drow-lbl   { font-family:var(--fb); font-size:12px; font-weight:600; min-width:100px; }
+.drow-track { flex:1; height:7px; background:var(--bg3); border-radius:4px; overflow:hidden; }
+.drow-fill  { height:100%; border-radius:4px; transition:width .5s ease; }
+.drow-pct   { font-family:var(--fd); font-size:13px; font-weight:700; min-width:36px; text-align:right; }
+
+/* ── VOTER ── */
+#voter { background:var(--bg); }
+.vb { flex:1; max-width:520px; width:100%; margin:0 auto; padding:20px 18px 56px; display:flex; flex-direction:column; gap:12px; }
+
+.ns { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 0; animation:fu .4s ease; }
+.ns-art { font-family:var(--fd); font-size:64px; font-weight:700; line-height:1; color:var(--mama); margin-bottom:4px; text-align:center; font-style:italic; }
+.ns-sub { font-family:var(--fd); font-style:italic; font-size:15px; color:var(--muted); margin-bottom:36px; text-align:center; }
+.nf { width:100%; max-width:320px; background:var(--bg2); border:2px solid var(--border2); color:var(--text); padding:12px 16px; border-radius:var(--r); font-family:var(--fd); font-size:18px; font-weight:600; text-align:center; outline:none; transition:border-color .16s; margin-bottom:10px; }
+.nf:focus { border-color:var(--tireo); }
+.nf::placeholder { color:var(--muted2); font-weight:400; font-style:italic; }
+
+.ws { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px 0; animation:fu .4s ease; }
+.wr { width:48px; height:48px; border:3px solid var(--border2); border-top-color:var(--tireo); border-radius:50%; animation:spin 1s linear infinite; margin-bottom:22px; }
+@keyframes spin { to { transform:rotate(360deg) } }
+.wh { font-family:var(--fd); font-size:22px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+.wp { font-size:13px; color:var(--muted2); }
+
+.vbh { text-align:center; padding:4px 0; animation:fu .4s ease; }
+.vbh-ico { font-size:28px; margin-bottom:6px; }
+.vbh-t { font-family:var(--fd); font-size:24px; font-weight:700; margin-bottom:3px; }
+.vbh-t.mama  { color:var(--mama); }
+.vbh-t.tireo { color:var(--tireo); }
+.vbh-s { font-size:13px; color:var(--muted); }
+
+.cvr { background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; transition:border-color .15s; animation:fu .3s ease both; }
+.cvr-head { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; border-bottom:1px solid var(--border); background:var(--bg3); }
+.cvr-num { font-family:var(--fb); font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); }
+.cvr-badge { font-family:var(--fb); font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:2px 8px; border-radius:20px; }
+.cvr-badge.voted { background:var(--ben-dim); color:var(--ben); border:1px solid var(--ben-b); }
+.cvr-badge.pend  { background:var(--bg3); color:var(--muted2); border:1px solid var(--border); }
+.cvr-btns { display:flex; gap:6px; padding:10px 12px; }
+.vo { flex:1; padding:9px 5px; border-radius:var(--rs); border:1.5px solid var(--border); background:var(--bg3); color:var(--muted); font-family:var(--fb); font-size:11px; font-weight:700; cursor:pointer; transition:all .13s; text-align:center; }
+.vo:hover:not(:disabled) { background:var(--bg2); border-color:var(--border2); color:var(--text); transform:translateY(-1px); }
+.vo:disabled { cursor:default; }
+.vo.sB { background:var(--ben-dim); border-color:var(--ben); color:var(--ben); }
+.vo.sM { background:var(--mal-dim); border-color:var(--mal); color:var(--mal); }
+.vo.sI { background:var(--ind-dim); border-color:var(--ind); color:var(--ind); }
+
+/* Score cards */
+.score-wrap { animation:fu .5s ease; }
+.scard { background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:10px; }
+.scard-head { padding:13px 16px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); background:var(--bg3); }
+.scard-title { font-family:var(--fd); font-size:13px; font-weight:700; }
+.scard-title.mama  { color:var(--mama); }
+.scard-title.tireo { color:var(--tireo); }
+.scard-title.tot   { color:var(--ben); }
+.scard-frac { font-family:var(--fd); font-size:24px; font-weight:700; }
+.spct { font-family:var(--fb); font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; }
+.spct.hi { background:var(--ben-dim); color:var(--ben); border:1px solid var(--ben-b); }
+.spct.mi { background:var(--ind-dim); color:var(--ind); border:1px solid var(--ind-b); }
+.spct.lo { background:var(--mal-dim); color:var(--mal); border:1px solid var(--mal-b); }
+.scard-body { padding:11px 16px; display:flex; flex-direction:column; gap:6px; }
+.sr { display:flex; align-items:center; gap:8px; font-size:12px; }
+.sr-num { color:var(--muted2); font-family:var(--fb); font-size:10px; letter-spacing:.5px; min-width:50px; }
+.sr-choice { font-family:var(--fb); font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; }
+.sr-choice.B    { background:var(--ben-dim); color:var(--ben); border:1px solid var(--ben-b); }
+.sr-choice.M    { background:var(--mal-dim); color:var(--mal); border:1px solid var(--mal-b); }
+.sr-choice.I    { background:var(--ind-dim); color:var(--ind); border:1px solid var(--ind-b); }
+.sr-choice.none { background:var(--bg3); color:var(--muted2); border:1px solid var(--border); }
+.sr-ico  { font-size:14px; margin-left:auto; }
+.sr-hint { font-size:10px; color:var(--muted); }
+
+/* Connection dot */
+.conn-dot { width:7px; height:7px; border-radius:50%; background:var(--muted2); display:inline-block; transition:background .3s; }
+.conn-dot.ok  { background:var(--ben); }
+.conn-dot.err { background:var(--mal); }
+
+.toast { position:fixed; bottom:16px; right:16px; background:var(--text); color:var(--bg2); padding:9px 16px; border-radius:var(--rs); font-family:var(--fb); font-size:12px; font-weight:600; z-index:10000; animation:fu .3s ease; box-shadow:0 4px 20px rgba(0,0,0,.2); }
+@keyframes fu { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+@media(max-width:680px){ .pl{grid-template-columns:1fr} .sidebar{display:none} }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LANDING ═══════════════ -->
+<div id="landing" class="page active">
+  <nav class="topbar">
+    <div class="logo">IMAG<span>·</span>Quiz</div>
+    <div class="tr"><div class="pill">Medicina Diagnóstica</div></div>
+  </nav>
+  <div class="li">
+    <div class="li-kick">Casos Interessantes · 2025</div>
+    <h1 class="li-h1">Quiz de<br><em>Diagnóstico</em></h1>
+    <p class="li-sub">Mama &amp; Tireoide — ao vivo</p>
+    <div class="li-cards">
+      <div class="ec mc" onclick="goPres()">
+        <span class="ec-ico">🖥️</span>
+        <div class="ec-role">Painel</div>
+        <div class="ec-name">Apresentador</div>
+        <p class="ec-desc">Configure gabaritos, controle as fases e veja estatísticas ao vivo.</p>
+      </div>
+      <div class="ec tc" onclick="goVoter()">
+        <span class="ec-ico">📱</span>
+        <div class="ec-role">Participante</div>
+        <div class="ec-name">Médico</div>
+        <p class="ec-desc">Vote nos casos e receba seu score ao final de cada bloco.</p>
+      </div>
+    </div>
+    <div class="qr-panel">
+      <div class="qr-panel-label">Acesso rápido para participantes</div>
+      <div class="qr-box" id="qrLanding"></div>
+      <div class="qr-url">pedroandradegama.github.io/imag-quiz/?r=v</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PRESENTER ═══════════════ -->
+<div id="presenter" class="page">
+  <nav class="topbar">
+    <div class="logo">IMAG<span>·</span>Quiz</div>
+    <div class="tr">
+      <span class="conn-dot" id="connDot"></span>
+      <div class="pill" id="presPill">Configuração</div>
+      <button class="btn btn-ghost btn-sm" onclick="goLanding()">← Início</button>
+    </div>
+  </nav>
+  <div class="pl">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sb-sec">
+        <div class="sb-lbl">Controle da sessão</div>
+        <div class="phase-btns">
+
+          <!-- Configuração -->
+          <button class="pb" id="pbIdle" onclick="setPhase('idle')">
+            <span class="pb-ico">⚙️</span>
+            <div><div class="pb-lbl">Configuração</div><div class="pb-sub">Editar gabaritos</div></div>
+          </button>
+
+          <div class="pb-divider"></div>
+
+          <!-- MAMA -->
+          <button class="pb pb-action mama-action" id="pbMama" onclick="setPhase('mama')">
+            <span class="pb-ico">▶️</span>
+            <div><div class="pb-lbl">Iniciar votação — Mama</div><div class="pb-sub">Libera os 10 casos para os médicos</div></div>
+          </button>
+          <button class="pb" id="pbResMama" onclick="setPhase('result_mama')">
+            <span class="pb-ico">📋</span>
+            <div><div class="pb-lbl">Liberar resultado — Mama</div><div class="pb-sub">Cada médico vê seu score individual</div></div>
+          </button>
+
+          <div class="pb-divider"></div>
+
+          <!-- TIREOIDE -->
+          <button class="pb pb-action tireo-action" id="pbTireo" onclick="setPhase('tireo')">
+            <span class="pb-ico">▶️</span>
+            <div><div class="pb-lbl">Iniciar votação — Tireoide</div><div class="pb-sub">Libera os 10 casos para os médicos</div></div>
+          </button>
+          <button class="pb" id="pbResTireo" onclick="setPhase('result_tireo')">
+            <span class="pb-ico">📋</span>
+            <div><div class="pb-lbl">Liberar resultado — Tireoide</div><div class="pb-sub">Cada médico vê seu score individual</div></div>
+          </button>
+
+          <div class="pb-divider"></div>
+
+          <!-- FINAL -->
+          <button class="pb" id="pbFinal" onclick="setPhase('final')">
+            <span class="pb-ico">🏆</span>
+            <div><div class="pb-lbl">Resultado Final</div><div class="pb-sub">Score geral agregado</div></div>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Gabaritos -->
+      <div class="cfg-scroll">
+        <div class="cfg-blk">
+          <div class="cfg-title mama">🎗️ Mama — Gabarito</div>
+          <div id="cfgMama"></div>
+        </div>
+        <div class="cfg-blk">
+          <div class="cfg-title tireo">🔵 Tireoide — Gabarito</div>
+          <div id="cfgTireo"></div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:6px;">
+          <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;" onclick="resetVotes()">🔄 Resetar votos</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;" onclick="resetAll()">💣 Reset total</button>
+        </div>
+      </div>
+
+      <!-- QR sidebar -->
+      <div class="sb-qr">
+        <div class="sb-qr-lbl">QR · Participantes</div>
+        <div class="sb-qr-inner">
+          <div class="sb-qr-box" id="qrSidebar"></div>
+          <div class="sb-qr-info"><strong>Escaneie para votar</strong>Câmera do celular → tela de participante.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="md" id="mainDash">
+      <div class="md-empty">
+        <div class="md-empty-ico">📊</div>
+        <div class="md-empty-t">Aguardando início</div>
+        <div class="md-empty-s">Configure os gabaritos e inicie um bloco.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ VOTER ═══════════════ -->
+<div id="voter" class="page">
+  <nav class="topbar">
+    <div class="logo">IMAG<span>·</span>Quiz</div>
+    <div class="tr">
+      <span class="conn-dot" id="voterConnDot"></span>
+      <div class="pill" id="voterPill">Participante</div>
+    </div>
+  </nav>
+  <div class="vb" id="voterBody"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  FIREBASE
+// ═══════════════════════════════════════════
+firebase.initializeApp({
+  apiKey: "AIzaSyDummyKeyNotNeededForRTDB",
+  databaseURL: "https://imag-quiz-default-rtdb.firebaseio.com"
+});
+const db        = firebase.database();
+const phaseRef  = db.ref('phase');
+const answersRef= db.ref('answers');
+const votesRef  = db.ref('votes');
+
+// ═══════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════
+const N  = 10;
+const AL = { B:'Benigno', M:'Maligno', I:'Indeterminado' };
+const VOTER_URL = 'https://pedroandradegama.github.io/imag-quiz/?r=v';
+
+// ═══════════════════════════════════════════
+//  LOCAL STATE
+// ═══════════════════════════════════════════
+let localAnswers = { mama: Array(N).fill('_'), tireo: Array(N).fill('_') };
+let vName      = null;
+let vPhase     = null;
+let vMyVotes   = { mama: Array(N).fill(null), tireo: Array(N).fill(null) };
+let vListeners = [];
+
+// ═══════════════════════════════════════════
+//  NAV
+// ═══════════════════════════════════════════
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function goLanding(){ detachAll(); showPage('landing'); }
+
+function goPres(){
+  showPage('presenter');
+  answersRef.once('value', snap => {
+    const val = snap.val();
+    if(val){
+      localAnswers.mama  = toArray(val.mama,  N);
+      localAnswers.tireo = toArray(val.tireo, N);
+    }
+    buildCfg();
+  });
+  phaseRef.on('value', snap => {
+    const ph = snap.val() || 'idle';
+    syncPhaseUI(ph);
+    votesRef.once('value', vSnap => renderDash(ph, vSnap.val() || {}));
+  });
+  votesRef.on('value', snap => {
+    phaseRef.once('value', pSnap => renderDash(pSnap.val()||'idle', snap.val()||{}));
+  });
+}
+
+function goVoter(){ showPage('voter'); renderNameScreen(); }
+
+function detachAll(){
+  phaseRef.off(); answersRef.off(); votesRef.off();
+  vListeners.forEach(fn => fn()); vListeners = [];
+}
+
+// ═══════════════════════════════════════════
+//  CONNECTION
+// ═══════════════════════════════════════════
+db.ref('.info/connected').on('value', snap => {
+  const ok = snap.val() === true;
+  document.querySelectorAll('.conn-dot').forEach(d => {
+    d.classList.toggle('ok', ok); d.classList.toggle('err', !ok);
+  });
+});
+
+// ═══════════════════════════════════════════
+//  PHASE  (idle | mama | result_mama | tireo | result_tireo | final)
+// ═══════════════════════════════════════════
+const PM = {
+  idle:         { lbl:'Configuração',        cls:'',     pbId:'pbIdle',    ac:'' },
+  mama:         { lbl:'▶ Votação — Mama',    cls:'mama', pbId:'pbMama',    ac:'mama' },
+  result_mama:  { lbl:'📋 Resultado — Mama', cls:'mama', pbId:'pbResMama', ac:'mama' },
+  tireo:        { lbl:'▶ Votação — Tireoide',cls:'tireo',pbId:'pbTireo',   ac:'tireo' },
+  result_tireo: { lbl:'📋 Resultado — Tireo',cls:'tireo',pbId:'pbResTireo',ac:'tireo' },
+  final:        { lbl:'🏆 Resultado Final',  cls:'live', pbId:'pbFinal',   ac:'ben' },
+};
+
+function setPhase(ph){ phaseRef.set(ph); }
+
+function syncPhaseUI(ph){
+  const m = PM[ph] || PM.idle;
+  const pill = document.getElementById('presPill');
+  if(pill){ pill.className='pill '+(m.cls||''); pill.textContent=m.lbl; pill.dataset.phase=ph; }
+  document.querySelectorAll('.pb').forEach(b => b.classList.remove('active','mama','tireo','ben','ind'));
+  const ab = document.getElementById(m.pbId);
+  if(ab){ ab.classList.add('active'); if(m.ac) ab.classList.add(m.ac); }
+}
+
+// ═══════════════════════════════════════════
+//  CONFIG UI
+// ═══════════════════════════════════════════
+function buildCfg(){
+  ['mama','tireo'].forEach(b => {
+    const c = document.getElementById('cfg'+b.charAt(0).toUpperCase()+b.slice(1));
+    if(!c) return;
+    c.innerHTML = '';
+    for(let i = 0; i < N; i++){
+      const v = localAnswers[b][i] || '_';
+      const row = document.createElement('div');
+      row.className = 'cfg-row';
+      row.innerHTML = `<div class="cfg-lbl">Caso ${i+1}</div>
+        <select class="asel" data-v="${v}" onchange="setAns('${b}',${i},this.value)">
+          <option value="_" ${v==='_'?'selected':''}>— ?</option>
+          <option value="B" ${v==='B'?'selected':''}>Benigno</option>
+          <option value="M" ${v==='M'?'selected':''}>Maligno</option>
+          <option value="I" ${v==='I'?'selected':''}>Indeterminado</option>
+        </select>`;
+      c.appendChild(row);
+    }
+  });
+}
+
+function setAns(b, i, v){
+  localAnswers[b][i] = v;
+  answersRef.child(b).child(i).set(v);
+  if(event?.target) event.target.dataset.v = v;
+}
+
+// ═══════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════
+function renderDash(ph, votesData){
+  const dash = document.getElementById('mainDash');
+  if(!dash) return;
+
+  if(ph === 'idle'){
+    dash.innerHTML = `<div class="md-empty"><div class="md-empty-ico">⚙️</div><div class="md-empty-t">Modo configuração</div><div class="md-empty-s">Defina os gabaritos e inicie um bloco.</div></div>`;
+    return;
+  }
+
+  const parts = Object.keys(votesData), nP = parts.length;
+
+  const getVote = (name, block, i) => {
+    const arr = votesData[name]?.[block];
+    if(!arr) return null;
+    const v = arr[i];
+    return (v===undefined||v===null||v==='null') ? null : v;
+  };
+
+  const acc = (block) => Array.from({length:N}, (_,i) => {
+    const ans = localAnswers[block][i];
+    if(ans==='_') return {pct:null,n:0,ans};
+    let ok=0,tot=0;
+    parts.forEach(nm => { const v=getVote(nm,block,i); if(v!==null){tot++;if(v===ans)ok++;} });
+    return {pct:tot?Math.round(ok/tot*100):null, n:tot, ans};
+  });
+
+  const avgB = (block) => {
+    const cfg = localAnswers[block].filter(a=>a!=='_').length;
+    if(!cfg||!nP) return null;
+    let sum=0;
+    parts.forEach(nm => {
+      let ok=0,tot=0;
+      for(let i=0;i<N;i++){
+        if(localAnswers[block][i]==='_') continue; tot++;
+        if(getVote(nm,block,i)===localAnswers[block][i]) ok++;
+      }
+      sum+=(tot?ok/tot:0);
+    });
+    return Math.round(sum/nP*100);
+  };
+
+  const distB = (block) => {
+    const o={B:0,M:0,I:0,total:0};
+    parts.forEach(nm => {
+      for(let i=0;i<N;i++){
+        const v=getVote(nm,block,i); if(v&&v!=='_'){o[v]++;o.total++;}
+      }
+    });
+    return o;
+  };
+
+  const showM = ['mama','result_mama','final'].includes(ph);
+  const showT = ['tireo','result_tireo','final'].includes(ph);
+
+  let html = '';
+
+  // Stats
+  html += `<div><div class="sec-t">Visão geral</div><div class="sg">
+    <div class="sc tot"><div class="sc-lbl">Participantes</div><div class="sc-val">${nP}</div><div class="sc-sub">médicos conectados</div></div>`;
+  if(showM){ const avg=avgB('mama');  html+=`<div class="sc mama"><div class="sc-lbl">Acerto médio · Mama</div><div class="sc-val">${avg!==null?avg+'%':'—'}</div><div class="sc-sub">${localAnswers.mama.filter(a=>a!=='_').length} casos</div></div>`; }
+  if(showT){ const avg=avgB('tireo'); html+=`<div class="sc tireo"><div class="sc-lbl">Acerto médio · Tireoide</div><div class="sc-val">${avg!==null?avg+'%':'—'}</div><div class="sc-sub">${localAnswers.tireo.filter(a=>a!=='_').length} casos</div></div>`; }
+  html += `</div></div>`;
+
+  // Case grids
+  const cgrid = (acArr, label) => {
+    let g = `<div><div class="sec-t">Acerto por caso · ${label}</div><div class="cag">`;
+    acArr.forEach((c,i) => {
+      const col = c.pct===null?'var(--muted2)':c.pct>=70?'var(--ben)':c.pct>=40?'var(--ind)':'var(--mal)';
+      g += `<div class="cac"><div class="cac-top">
+        <div class="cac-lbl">${label.slice(0,4).toUpperCase()} ${i+1}</div>
+        <div class="ab ${c.ans||'_'}">${c.ans&&c.ans!=='_'?AL[c.ans].slice(0,3):'?'}</div>
+      </div>
+      <div class="cac-track"><div class="cac-fill" style="width:${c.pct||0}%;background:${col}"></div></div>
+      <div class="cac-pct" style="color:${col}">${c.pct!==null?c.pct+'%':'—'}</div>
+      <div class="cac-n">${c.n} voto${c.n!==1?'s':''}</div></div>`;
+    });
+    return g + `</div></div>`;
+  };
+  if(showM) html += cgrid(acc('mama'),  'Mama');
+  if(showT) html += cgrid(acc('tireo'), 'Tireoide');
+
+  // Distribution
+  const dcard = (d, label) => {
+    if(!d||!d.total) return '';
+    const pB=Math.round(d.B/d.total*100), pM=Math.round(d.M/d.total*100), pI=100-pB-pM;
+    return `<div class="dist-card"><div class="dist-card-t">Distribuição de respostas · ${label}</div>
+      <div class="drow"><div class="drow-lbl" style="color:var(--ben)">Benigno</div><div class="drow-track"><div class="drow-fill" style="width:${pB}%;background:var(--ben)"></div></div><div class="drow-pct" style="color:var(--ben)">${pB}%</div></div>
+      <div class="drow"><div class="drow-lbl" style="color:var(--mal)">Maligno</div><div class="drow-track"><div class="drow-fill" style="width:${pM}%;background:var(--mal)"></div></div><div class="drow-pct" style="color:var(--mal)">${pM}%</div></div>
+      <div class="drow"><div class="drow-lbl" style="color:var(--ind)">Indeterminado</div><div class="drow-track"><div class="drow-fill" style="width:${pI}%;background:var(--ind)"></div></div><div class="drow-pct" style="color:var(--ind)">${pI}%</div></div>
+    </div>`;
+  };
+  if(showM) html += dcard(distB('mama'),  'Mama');
+  if(showT) html += dcard(distB('tireo'), 'Tireoide');
+
+  dash.innerHTML = html;
+}
+
+function resetVotes(){ if(!confirm('Resetar todos os votos? Gabaritos mantidos.')) return; votesRef.set(null).then(()=>toast('Votos resetados.')); }
+function resetAll(){
+  if(!confirm('Reset TOTAL: apagar votos, fase e gabaritos?')) return;
+  localAnswers = { mama: Array(N).fill('_'), tireo: Array(N).fill('_') };
+  Promise.all([votesRef.set(null), phaseRef.set('idle'), answersRef.set(null)])
+    .then(() => { buildCfg(); toast('Reset total feito.'); });
+}
+
+// ═══════════════════════════════════════════
+//  VOTER
+// ═══════════════════════════════════════════
+function renderNameScreen(){
+  document.getElementById('voterBody').innerHTML = `<div class="ns">
+    <div class="ns-art">IMAG</div>
+    <div class="ns-sub">Identifique-se para participar</div>
+    <input class="nf" id="nf" placeholder="Seu nome…" maxlength="32"
+      onkeydown="if(event.key==='Enter') joinVoter()">
+    <button class="btn btn-tireo btn-lg" style="width:100%;max-width:320px;justify-content:center;" onclick="joinVoter()">
+      Entrar →
+    </button>
+  </div>`;
+  setTimeout(() => document.getElementById('nf')?.focus(), 100);
+}
+
+function joinVoter(){
+  const inp  = document.getElementById('nf');
+  const name = (inp?.value || '').trim();
+  if(!name){ inp?.focus(); return; }
+  vName = name;
+  // Always start with a clean slate — wipe any votes left from a previous session
+  vMyVotes = { mama: Array(N).fill(null), tireo: Array(N).fill(null) };
+  votesRef.child(safeName(vName)).set(null).then(() => attachVoterListeners());
+}
+
+function safeName(n){ return n.replace(/[.#$\[\]/]/g,'_'); }
+
+function toArray(val, n){
+  if(!val) return Array(n).fill(null);
+  return Array.from({length:n}, (_,i) => {
+    const v = val[i];
+    return (v===undefined||v===null||v==='null') ? null : v;
+  });
+}
+
+function attachVoterListeners(){
+  const phFn = phaseRef.on('value', snap => {
+    const ph = snap.val() || 'idle';
+    if(ph !== vPhase){ vPhase = ph; renderVoterForPhase(ph); }
+  });
+  votesRef.child(safeName(vName)).on('value', snap => {
+    const val = snap.val();
+    if(val){ vMyVotes.mama=toArray(val.mama,N); vMyVotes.tireo=toArray(val.tireo,N); }
+  });
+  vListeners.push(() => { phaseRef.off('value',phFn); votesRef.child(safeName(vName)).off(); });
+}
+
+function renderVoterForPhase(ph){
+  const pill = document.getElementById('voterPill');
+
+  if(ph === 'idle'){
+    if(pill){ pill.className='pill'; pill.textContent='Aguardando'; }
+    document.getElementById('voterBody').innerHTML = `<div class="ws">
+      <div class="wr"></div>
+      <div class="wh">Aguardando início</div>
+      <p class="wp">O apresentador abrirá a votação em breve.</p>
+      <p style="margin-top:14px;font-family:var(--fd);font-style:italic;font-size:13px;color:var(--tireo);">${esc(vName)}</p>
+    </div>`;
+    return;
+  }
+
+  if(ph === 'result_mama')  { renderVScore('mama');  return; }
+  if(ph === 'result_tireo') { renderVScore('tireo'); return; }
+  if(ph === 'final')        { renderVFinal();        return; }
+
+  // Voting: ph === 'mama' or 'tireo'
+  const block  = ph;
+  const isMama = block === 'mama';
+  const label  = isMama ? 'Mama' : 'Tireoide';
+  const icon   = isMama ? '🎗️' : '🔵';
+
+  if(pill){ pill.className='pill '+block; pill.textContent=label; }
+
+  const votes    = vMyVotes[block];
+  const answered = votes.filter(v=>v!==null).length;
+
+  let html = `<div class="vbh">
+    <div class="vbh-ico">${icon}</div>
+    <div class="vbh-t ${block}">Casos de ${label}</div>
+    <div class="vbh-s" id="vbhS">${answered}/${N} respondidos · ${esc(vName)}</div>
+  </div>`;
+
+  for(let i=0; i<N; i++){
+    const vote  = votes[i], voted = vote!==null;
+    html += `<div class="cvr" id="cvr_${block}_${i}" style="animation-delay:${(i*.035).toFixed(2)}s">
+      <div class="cvr-head">
+        <div class="cvr-num">${label} · Caso ${i+1}</div>
+        <div class="cvr-badge ${voted?'voted':'pend'}">${voted?'✓ Respondido':'Pendente'}</div>
+      </div>
+      <div class="cvr-btns">
+        ${['B','M','I'].map(opt=>`<button class="vo ${voted&&vote===opt?'s'+opt:''}" ${voted?'disabled':''}
+          onclick="castVote('${block}',${i},'${opt}')">${AL[opt]}</button>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('voterBody').innerHTML = html;
+}
+
+function castVote(block, idx, val){
+  if(!vName||vMyVotes[block][idx]!==null) return;
+  vMyVotes[block][idx] = val;
+  votesRef.child(safeName(vName)).child(block).child(idx).set(val);
+  const row = document.getElementById(`cvr_${block}_${idx}`);
+  if(row){
+    row.querySelectorAll('.vo').forEach(b=>{ b.disabled=true; ['B','M','I'].forEach(o=>b.classList.remove('s'+o)); });
+    row.querySelectorAll('.vo')[['B','M','I'].indexOf(val)]?.classList.add('s'+val);
+    const badge=row.querySelector('.cvr-badge');
+    if(badge){ badge.className='cvr-badge voted'; badge.textContent='✓ Respondido'; }
+  }
+  const answered = vMyVotes[block].filter(v=>v!==null).length;
+  const sub = document.getElementById('vbhS');
+  if(sub) sub.textContent=`${answered}/${N} respondidos · ${vName}`;
+}
+
+function renderVScore(block){
+  answersRef.once('value', snap => {
+    const ans       = snap.val() || {};
+    const blockAns  = toArray(ans[block], N);
+    const isMama    = block==='mama';
+    const label     = isMama?'Mama':'Tireoide';
+    const pill      = document.getElementById('voterPill');
+    if(pill){ pill.className='pill '+block; pill.textContent='Resultado · '+label; }
+
+    let ok=0,tot=0; const rows=[];
+    for(let i=0;i<N;i++){
+      const a=blockAns[i]; if(!a||a==='_') continue;
+      tot++; const v=vMyVotes[block][i]; if(v===a) ok++;
+      rows.push({i,ans:a,vote:v});
+    }
+    const pct=tot?Math.round(ok/tot*100):0, pc=pct>=70?'hi':pct>=40?'mi':'lo';
+
+    document.getElementById('voterBody').innerHTML = `<div class="score-wrap">
+      <div class="scard">
+        <div class="scard-head">
+          <div class="scard-title ${block}">${isMama?'🎗️':'🔵'} Resultado · ${label}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="scard-frac">${ok}/${tot}</div>
+            <div class="spct ${pc}">${pct}%</div>
+          </div>
+        </div>
+        <div class="scard-body">
+          ${rows.map(({i,ans,vote})=>`<div class="sr">
+            <div class="sr-num">Caso ${i+1}</div>
+            <div class="sr-choice ${vote||'none'}">${vote?AL[vote].slice(0,3):'—'}</div>
+            <div class="sr-ico">${vote===null?'⬜':vote===ans?'✅':'❌'}</div>
+            ${vote!==null&&vote!==ans?`<div class="sr-hint">→ ${AL[ans].slice(0,3)}</div>`:''}
+          </div>`).join('')}
+        </div>
+      </div>
+      <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:4px;font-style:italic;">
+        ${isMama?'Aguarde — o bloco de Tireoide abrirá em breve.':'Aguarde o resultado final.'}
+      </p>
+    </div>`;
+  });
+}
+
+function renderVFinal(){
+  answersRef.once('value', snap => {
+    const ans   = snap.val() || {};
+    const maAns = toArray(ans.mama,  N);
+    const tiAns = toArray(ans.tireo, N);
+    const pill  = document.getElementById('voterPill');
+    if(pill){ pill.className='pill live'; pill.textContent='Resultado Final'; }
+
+    let mOk=0,mTot=0,tOk=0,tTot=0;
+    const rows={mama:[],tireo:[]};
+    ['mama','tireo'].forEach(b=>{
+      const bAns=b==='mama'?maAns:tiAns;
+      for(let i=0;i<N;i++){
+        const a=bAns[i]; if(!a||a==='_') continue;
+        const v=vMyVotes[b][i];
+        if(b==='mama'){mTot++;if(v===a)mOk++;}else{tTot++;if(v===a)tOk++;}
+        rows[b].push({i,ans:a,vote:v});
+      }
+    });
+
+    const tot=mOk+tOk, totTot=mTot+tTot;
+    const tPct=totTot?Math.round(tot/totTot*100):0;
+    const mPct=mTot?Math.round(mOk/mTot*100):0;
+    const tiPct=tTot?Math.round(tOk/tTot*100):0;
+    const pc=p=>p>=70?'hi':p>=40?'mi':'lo';
+    const mkR=b=>rows[b].map(({i,ans,vote})=>`<div class="sr">
+      <div class="sr-num">Caso ${i+1}</div>
+      <div class="sr-choice ${vote||'none'}">${vote?AL[vote].slice(0,3):'—'}</div>
+      <div class="sr-ico">${vote===null?'⬜':vote===ans?'✅':'❌'}</div>
+      ${vote!==null&&vote!==ans?`<div class="sr-hint">→ ${AL[ans].slice(0,3)}</div>`:''}
+    </div>`).join('');
+
+    document.getElementById('voterBody').innerHTML = `<div class="score-wrap">
+      <div class="scard">
+        <div class="scard-head">
+          <div class="scard-title tot">🏆 Total · ${esc(vName)}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="scard-frac">${tot}/${totTot}</div>
+            <div class="spct ${pc(tPct)}">${tPct}%</div>
+          </div>
+        </div>
+      </div>
+      <div class="scard">
+        <div class="scard-head">
+          <div class="scard-title mama">🎗️ Mama</div>
+          <div style="display:flex;align-items:center;gap:8px;"><div class="scard-frac">${mOk}/${mTot}</div><div class="spct ${pc(mPct)}">${mPct}%</div></div>
+        </div>
+        <div class="scard-body">${mkR('mama')}</div>
+      </div>
+      <div class="scard">
+        <div class="scard-head">
+          <div class="scard-title tireo">🔵 Tireoide</div>
+          <div style="display:flex;align-items:center;gap:8px;"><div class="scard-frac">${tOk}/${tTot}</div><div class="spct ${pc(tiPct)}">${tiPct}%</div></div>
+        </div>
+        <div class="scard-body">${mkR('tireo')}</div>
+      </div>
+    </div>`;
+  });
+}
+
+// ═══════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+let tT;
+function toast(msg){
+  const o=document.getElementById('_t'); if(o) o.remove();
+  const el=document.createElement('div'); el.id='_t'; el.className='toast'; el.textContent=msg;
+  document.body.appendChild(el); clearTimeout(tT); tT=setTimeout(()=>el.remove(),2600);
+}
+
+// ═══════════════════════════════════════════
+//  QR
+// ═══════════════════════════════════════════
+function makeQR(id, size){
+  const el=document.getElementById(id); if(!el||!window.QRCode) return;
+  el.innerHTML='';
+  new QRCode(el,{text:VOTER_URL,width:size,height:size,colorDark:'#1a1a1a',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+}
+window.addEventListener('load',()=>setTimeout(()=>{ makeQR('qrLanding',140); makeQR('qrSidebar',76); },200));
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+if(new URLSearchParams(window.location.search).get('r')==='v') goVoter();
+</script>
+</body>
+</html>
